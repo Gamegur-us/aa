@@ -14,8 +14,6 @@
 			this.load.image('circle', 'img/circle.png');
 			this.load.image('bg', 'img/bg.png');
 		},
-		pins: [],
-		toLaunch: [],
 		createPin: function(x, y, dt, text){
 			var ret = {x: x, y: y, dt: dt , text: text, sprite: null};
 
@@ -29,6 +27,12 @@
 			return ret;
 		},
 		create: function () {
+
+			this.pins= [];
+			this.toLaunch= [];
+			this.elapsed= 0;
+			this.gameover = false;
+			
 
 			var bg = this.add.tileSprite(0, 0, this.world.width, this.world.height, 'bg');
 			bg.tileScale.x = 480/900;
@@ -98,11 +102,10 @@
 				}
 			}, this);
 		},
-		this.winAnimations: function(){
+		winAnimations: function(){
 			alert('you win!');
-		}
-		elapsed: 0,
-		gameover: false,
+			this.state.start('Main');
+		},
 		update: function(){
 			if(this.gameover){
 				return;
