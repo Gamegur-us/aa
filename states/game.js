@@ -1,3 +1,4 @@
+/* global Phaser */
 (function(){
 
 	'use strict';
@@ -5,7 +6,7 @@
 	};
 
 
-	GameCtrl.Main = function () {
+	window.GameCtrl.Main = function () {
 	};
 
 	var Levels = [
@@ -17,7 +18,10 @@
 	];
 	
 
-	GameCtrl.Main.prototype = {
+	var ORBIT_R = 200, PARTICLE_R = 16;
+
+
+	window.GameCtrl.Main.prototype = {
 
 
 		preload: function () {
@@ -31,9 +35,10 @@
 			ret.sprite = this.add.sprite(x, y, 'circle');
 			ret.sprite.anchor.set(0.5);
 
-			var style = { font: "15px Arial", fill: "#000", align: "center" };
+			var style = { font: '15px Arial', fill: '#000', align: 'center' };
 		    var t = this.add.text(0, 0, text, style);
-		    t.anchor.set(0.5,0.5);
+		    t.anchor.set(0.5, 0.5);
+		    ret.name = text;
 		    ret.sprite.addChild(t);
 		    return ret;
 		},
@@ -42,20 +47,21 @@
 			bg.tileScale.x = 480/900;
 			bg.tileScale.y = 480/900;
 
+			
 
-			this.pins= [];
+
+			this.pins = [];
 			this.toLaunch = [];
 			this.pinMoving = [];
-			this.elapsed= 0;
 			this.gameover = false;
-			
+			this.tweenRunning = [];
 
 			
 			var _circle = this.add.graphics(0, 0);
 			_circle
 			.lineStyle(0)
     		.beginFill(0xFFFF83)
-    		.drawCircle(100, 100, 200)
+    		.drawCircle(100, 100, ORBIT_R)
     		.endFill();
 
     		this.centerCircle =  this.add.sprite(this.world.centerX, 350, _circle.generateTexture());
@@ -64,7 +70,7 @@
 
 
 
-    		var style = { font: "24px Arial", fill: "#000", align: "center" };
+    		var style = { font: '24px Arial', fill: '#000', align: 'center' };
 		    var levelText = this.add.text(0, 0, 'Level 1', style);
 
 		    levelText.anchor.set(0.5);
@@ -74,7 +80,7 @@
     		
 			for(var i = 1; i < 8; i +=1){
 				
-				this.toLaunch.push(this.createPin(this.world.centerX, 650 + ((i-1) * 50), 0 , (8-i).toString()));
+				this.toLaunch.push(this.createPin(this.world.centerX, 650 + ((i-1) * 50),false , (8-i).toString()));
 			}
 
 			this.input.onDown.add(this.releasePin, this);
@@ -88,17 +94,30 @@
 			_rotationSprite.clear();
 			this.rotationSprite.anchor.set(0.5);
 			
-			var p = this.createPin(this.world.centerX + 200, 150, 0 ,'');
+			var p = this.createPin(this.world.centerX + ORBIT_R, 150, 0 ,'');
 			this.addToRotation(p);
+			//var p = this.createPin(this.world.centerX + ORBIT_R, 150, Phaser.Math.radToDeg(Math.atan(ORBIT_R/ (32))) ,'dd');
+			p = this.createPin(this.world.centerX + ORBIT_R, 150, 10 ,'dd');
+			this.addToRotation(p);
+
+			// aprox 10 degree 
+			this._limitAngle = 10;
+
+
+			this.rotationTween = this.add.tween(this.rotationSprite).to({angle: 360}, 4000, Phaser.Easing.Linear.None, true, 0, false);
+
+			
 
 		},
 
 		addToRotation: function (pin) {
-			pin.dt = -(this.rotationSprite.angle - 90);
+			if (pin.dt === false){
+				pin.dt = -(this.rotationSprite.angle - 90);
+			}
 			var orbitRad = Phaser.Math.degToRad(pin.dt);
 
-			var x = Math.cos(orbitRad) * 200;
-			var y = Math.sin(orbitRad) * 200;
+			var x = Math.cos(orbitRad) * ORBIT_R;
+			var y = Math.sin(orbitRad) * ORBIT_R;
 
 			pin.x = x;
 			pin.y = y;
@@ -112,11 +131,14 @@
 			_line.lineStyle(2, 0xFFFF0B, 0.5);
 			_line.moveTo(0, 0);
 			//_line.lineTo(x, y);
-			_line.lineTo(0, 200);
+			_line.lineTo(0, ORBIT_R);
 			var s = this.add.sprite(0, 0, _line.generateTexture());
-			s.anchor.set(0.5, 0);
-			s.angle = -this.rotationSprite.angle;
+			s.anchor.set(0, 0);
+			//s.angle = -this.rotationSprite.angle;
+			s.angle = pin.dt - 90;
+			
 			this.rotationSprite.addChild(s);
+			
 			_line.clear();
 
 			this.pins.push(pin);
@@ -124,18 +146,19 @@
 			this.centerCircle.bringToTop();
 		},
 		releasePin: function(){
-			if(this.gameover){
+			if (this.gameover) {
 				return;
 			}
 			
-			if (this.toLaunch.length == 0) {
+			if (this.toLaunch.length === 0) {
 				return;
 			}
 
 			
 			var current = this.toLaunch.shift();
 			
-			var tweenRunning = this.add.tween(current.sprite).to({y: 550}, 100, Phaser.Easing.Linear.None, true);
+			var tweenRunning = this.add.tween(current.sprite).to({y: 550}, 5000, Phaser.Easing.Linear.None, true)
+			this.tweenRunning.push(tweenRunning);
 
 			var position = this.pinMoving.length;
 
@@ -169,12 +192,12 @@
 
 		},
 		winAnimations: function(){
-			var style = { font: "40px Arial", fill: "#FFF", fontWeight: '800', align: "center" };
+			var style = { font: '40px Arial', fill: '#FFF', fontWeight: '800', align: 'center' };
 		    var t = this.add.text(this.world.centerX, -50, 'YOU WIN!', style);
 		    t.anchor.set(0.5);
 		    this.add.tween(t).to({y: '+100'}, 120, Phaser.Easing.Linear.None, true)
 		    .onComplete.addOnce(function(){
-		    	var style = { font: "32px Arial", fill: "#FFF", fontWeight: '800', align: "center" };
+		    	var style = { font: '32px Arial', fill: '#FFF', fontWeight: '800', align: 'center' };
 			    var t = this.add.text(this.world.centerX, -50, 'TOUCH FOR NEXT LEVEL!', style);
 			    t.anchor.set(0.5);
 			    this.add.tween(t).to({y: '+180'}, 320, Phaser.Easing.Linear.None, true)
@@ -193,28 +216,27 @@
 //			this.state.start('Main');
 		},
 		update: function(){
-			if(this.elapsed>360) {
-				this.elapsed -= 360;
-			}
-
-			this.elapsed += 1;
-
-			this.rotationSprite.angle = this.elapsed;
-			for(var i = 0; i < this.pins.length; i += 1) {
-				this.pins[i].sprite.getChildAt(0).angle = -this.rotationSprite.angle;
-			}
-
+			//console.log(Phaser.Math.degToRad(this.rotationSprite.angle);
 			if(this.gameover){
+				this.rotationTween.stop();
 				return;
 			}
+			
+			for(var i = 0, p; i < this.pins.length; i += 1) {
+				p = this.pins[i].sprite.getChildAt(0);
+				if (p) {
+					p.angle = -this.rotationSprite.angle;
+				}
+			}
+
 			this.checkIntersection();
 
 			
 		},
 		circlesIntersect: function (s1, s2){
-console.log(s1);
+/*console.log(s1);
 console.log(s2);
-			
+*/			
 			var c1X = s1.x,c1Y=s1.y,c1Radius=s1.width / 2;
 			var c2X = s2.x,c2Y=s2.y,c2Radius=s2.width / 2;
 			var distanceX = c2X - c1X;
@@ -233,27 +255,81 @@ console.log(s2);
 			}
 
 			var orbitRad;
-			for(var i = 0, e; i < this.pinMoving.length; i += 1) {
-				e = this.pinMoving[i];
+			var p, e;
 
-				for(var j = 1,p; j< this.pins.length; j += 1){
-					p = this.pins[i];
+
+
+			var _current = -(this.rotationSprite.angle - 90);
+			var _pinsToCheck = [];
+		
+			for(var j = 0; j< this.pins.length; j += 1){
+				p = this.pins[j];
+				var _angle = Math.abs(Math.abs(p.dt - _current));
+				if(_angle <= this._limitAngle) {
+			
+					_pinsToCheck.push(p);
+				}
+			}
+
+
+			for(var i = 0; i< this.pinMoving.length; i += 1){
+				e = this.pinMoving[i];
+				// no in the collition path
+				if(e.sprite.y > 550+32){
+					continue;
+				}
+
+				for(var j = 0; j < _pinsToCheck.length; j += 1) {
+					p = _pinsToCheck[j];
+
+					orbitRad = Phaser.Math.degToRad(this.rotationSprite.angle+p.dt+180);
+
+					var x = Math.cos(orbitRad) * ORBIT_R;
+					var y = Math.sin(orbitRad) * ORBIT_R;
+					var x2 = (this.world.centerX-e.sprite.x);
+					var y2= 350-e.sprite.y;
+					if (Phaser.Math.distance(x ,y ,x2 ,y2) < PARTICLE_R * 2) {
+						p.sprite.tint = 0xCC0000;
+						e.sprite.tint = 0xCC0000;
+						this.gameover = true;
+						this.rotationTween.stop();
+						
+this.tweenRunning.forEach(function(a){
+						a.pause();
+						console.log(stop);
+					});
+					
+					}
+				}
+			}
+
+			return;
+
+			/*for(var i = 0; i< this.pins.length; i += 1){
+				var y2= 350-e.sprite.y;
+				//if (y2 > 200 + )
+*/
+			for(var i = 0, e; i < _pinsToCheck.length; i += 1) {
+				e = _pinsToCheck[i];
+
+				for(var j = 0; j < this.pinMoving.length; j += 1) {
+					p = this.pinMoving[i];
 
 					orbitRad = Phaser.Math.degToRad(this.rotationSprite.angle+p.dt);
 
-					var x = Math.cos(orbitRad) * 200;
-					var y = Math.sin(orbitRad) * 200;
+					var x = Math.cos(orbitRad) * ORBIT_R;
+					var y = Math.sin(orbitRad) * ORBIT_R;
 
 					var x2 = (this.world.centerX-e.sprite.x)
 					var y2= 350-e.sprite.y;
-
-					if(this.circlesIntersect({x:x,y:y,width:p.sprite.width}, 
-{x:x2,y:y2,width:e.sprite.width}
+					console.log(Phaser.Math.distance(x , y , x2 , y2));
+					
+					if(this.circlesIntersect({x:x,y:y,width:p.sprite.width}, {x:x2,y:y2,width:e.sprite.width}
 						)){
 						p.sprite.tint = 0xCC0000;
 						e.sprite.tint = 0xCC0000;
 						this.gameover = true;
-						break;
+						
 					}
 				}
 			}
